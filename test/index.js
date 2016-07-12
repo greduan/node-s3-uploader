@@ -3,7 +3,7 @@
 var assert = require('assert');
 var td = require('testdouble');
 
-if (global.Attachments == null) {
+if (global.S3Uploader == null) {
   require(__dirname + '/../lib');
 }
 
@@ -13,24 +13,24 @@ var createKnoxStub = function () {
   };
 };
 
-describe('Attachments module', function () {
+describe('S3Uploader module', function () {
 
   describe('Initialization', function () {
 
     it('Should not throw at initialization without opts arg', function () {
       assert.doesNotThrow(function () {
-        var a = new Attachments(createKnoxStub());
+        var a = new S3Uploader(createKnoxStub());
       }, Error);
     });
 
     it('Should set this._client', function () {
-      var a = new Attachments(createKnoxStub());
+      var a = new S3Uploader(createKnoxStub());
 
       assert.notEqual(a._client, undefined);
     });
 
     it('Should populate defaults correctly', function () {
-      var a = new Attachments(createKnoxStub());
+      var a = new S3Uploader(createKnoxStub());
 
       assert.equal(a._pathPrefix, '');
       assert.equal(a._maxFileSize, 0);
@@ -38,7 +38,7 @@ describe('Attachments module', function () {
     });
 
     it('Should populate not-given defaults correctly', function () {
-      var a = new Attachments(createKnoxStub(), {});
+      var a = new S3Uploader(createKnoxStub(), {});
 
       assert.equal(a._pathPrefix, '');
       assert.equal(a._maxFileSize, 0);
@@ -46,7 +46,7 @@ describe('Attachments module', function () {
     });
 
     it('Should respect optional passed-in options', function () {
-      var a = new Attachments(createKnoxStub(), {
+      var a = new S3Uploader(createKnoxStub(), {
         pathPrefix: '/boop',
         maxFileSize: 512,
         acceptedMimeTypes: ['image/png'],
@@ -65,10 +65,10 @@ describe('Attachments module', function () {
 
     describe('Max file size', function () {
 
-      var fileSizeError = new Error('Attachments: File too big');
+      var fileSizeError = new Error('S3Uploader: File too big');
 
       it('Should return error for file bigger than limit', function () {
-        var a = new Attachments(createKnoxStub(), {
+        var a = new S3Uploader(createKnoxStub(), {
           maxFileSize: 1023,
         });
 
@@ -76,7 +76,7 @@ describe('Attachments module', function () {
       });
 
       it('Should allow file that does not break limit', function () {
-        var a = new Attachments(createKnoxStub(), {
+        var a = new S3Uploader(createKnoxStub(), {
           maxFileSize: 1024,
         });
 
@@ -87,10 +87,10 @@ describe('Attachments module', function () {
 
     describe('Accepted Mimetypes', function () {
 
-      var mimeTypeError = new Error('Attachments: Invalid file mimetype');
+      var mimeTypeError = new Error('S3Uploader: Invalid file mimetype');
 
       it('Should return Error for file that is not in accepted array', function () {
-        var a = new Attachments(createKnoxStub(), {
+        var a = new S3Uploader(createKnoxStub(), {
           acceptedMimeTypes: ['image/png'],
         });
 
@@ -98,7 +98,7 @@ describe('Attachments module', function () {
       });
 
       it('Should allow file that is in accepted array', function () {
-        var a = new Attachments(createKnoxStub(), {
+        var a = new S3Uploader(createKnoxStub(), {
           acceptedMimeTypes: ['text/plain'],
         });
 
@@ -106,7 +106,7 @@ describe('Attachments module', function () {
       });
 
       it('Should accept Regex as array value', function () {
-        var a = new Attachments(createKnoxStub(), {
+        var a = new S3Uploader(createKnoxStub(), {
           acceptedMimeTypes: [/^.*plain$/],
         });
 
@@ -125,7 +125,7 @@ describe('Attachments module', function () {
     var bigFilePath = __dirname + '/big-file.txt';
 
     it('Should call #_checkConstraints once', function () {
-      var a = new Attachments(createKnoxStub());
+      var a = new S3Uploader(createKnoxStub());
 
       a._checkConstraints = td.function('_checkConstraints');
       td
@@ -136,12 +136,12 @@ describe('Attachments module', function () {
     });
 
     it('Should return rejected Promise if #_checkConstraints returns error', function () {
-      var a = new Attachments(createKnoxStub());
+      var a = new S3Uploader(createKnoxStub());
 
       a._checkConstraints = td.function('_checkConstraints');
       td
         .when(a._checkConstraints(bigFilePath))
-        .thenReturn(new Error('Attachments: Invalid file mimetype'));
+        .thenReturn(new Error('S3Uploader: Invalid file mimetype'));
 
       var res = a.uploadFile(bigFilePath, '/yay.txt');
 
@@ -152,7 +152,7 @@ describe('Attachments module', function () {
           throw 'Should not have resolved';
         })
         .catch(function (err) {
-          assert.deepEqual(err, new Error('Attachments: Invalid file mimetype'));
+          assert.deepEqual(err, new Error('S3Uploader: Invalid file mimetype'));
         })
     });
 
@@ -174,7 +174,7 @@ describe('Attachments module', function () {
 
       // Test code
 
-      var a = new Attachments(knoxStub);
+      var a = new S3Uploader(knoxStub);
 
       return a.uploadFile(bigFilePath, '/yes.txt')
         .then(function () {
@@ -208,7 +208,7 @@ describe('Attachments module', function () {
 
       // Test code
 
-      var a = new Attachments(knoxStub, {
+      var a = new S3Uploader(knoxStub, {
         pathPrefix: '/foo',
       });
 
