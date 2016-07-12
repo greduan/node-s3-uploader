@@ -1,0 +1,22 @@
+{
+  "name": "s3-uploader",
+  "version": "0.1.0",
+  "description": "A simple upload helper for Amazon S3",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/greduan/node-s3-uploader.git"
+  },
+  "keywords": [
+    "amazon"
+  ],
+  "author": "Eduardo Lavaque <me@greduan.com> (http://greduan.com)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/greduan/node-s3-uploader/issues"
+  },
+  "homepage": "https://github.com/greduan/node-s3-uploader#readme"
+}
