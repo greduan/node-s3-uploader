@@ -7,7 +7,7 @@ if (global.Attachments == null) {
   require(__dirname + '/../../../lib/Attachments');
 }
 
-var createKnoxMock = function () {
+var createKnoxStub = function () {
   return {
     putFile: td.function(),
   };
@@ -19,12 +19,18 @@ describe('Attachments module', function () {
 
     it('Should not throw at initialization without opts arg', function () {
       assert.doesNotThrow(function () {
-        var a = new Attachments(createKnoxMock());
+        var a = new Attachments(createKnoxStub());
       }, Error);
     });
 
+    it('Should set this._client', function () {
+      var a = new Attachments(createKnoxStub());
+
+      assert.notEqual(a._client, undefined);
+    });
+
     it('Should populate defaults correctly', function () {
-      var a = new Attachments(createKnoxMock());
+      var a = new Attachments(createKnoxStub());
 
       assert.equal(a._pathPrefix, '');
       assert.equal(a._maxFileSize, 0);
@@ -32,7 +38,7 @@ describe('Attachments module', function () {
     });
 
     it('Should populate not-given defaults correctly', function () {
-      var a = new Attachments(createKnoxMock(), {});
+      var a = new Attachments(createKnoxStub(), {});
 
       assert.equal(a._pathPrefix, '');
       assert.equal(a._maxFileSize, 0);
@@ -40,7 +46,7 @@ describe('Attachments module', function () {
     });
 
     it('Should respect optional passed-in options', function () {
-      var a = new Attachments(createKnoxMock(), {
+      var a = new Attachments(createKnoxStub(), {
         pathPrefix: '/boop',
         maxFileSize: 512,
         acceptedMimeTypes: ['image/png'],
@@ -62,7 +68,7 @@ describe('Attachments module', function () {
       var fileSizeError = new Error('Attachments: File too big');
 
       it('Should return error for file bigger than limit', function () {
-        var a = new Attachments(createKnoxMock(), {
+        var a = new Attachments(createKnoxStub(), {
           maxFileSize: 1023,
         });
 
@@ -70,7 +76,7 @@ describe('Attachments module', function () {
       });
 
       it('Should allow file that does not break limit', function () {
-        var a = new Attachments(createKnoxMock(), {
+        var a = new Attachments(createKnoxStub(), {
           maxFileSize: 1024,
         });
 
@@ -84,7 +90,7 @@ describe('Attachments module', function () {
       var mimeTypeError = new Error('Attachments: Invalid file mimetype');
 
       it('Should return Error for file that is not in accepted array', function () {
-        var a = new Attachments(createKnoxMock(), {
+        var a = new Attachments(createKnoxStub(), {
           acceptedMimeTypes: ['image/png'],
         });
 
@@ -92,7 +98,7 @@ describe('Attachments module', function () {
       });
 
       it('Should allow file that is in accepted array', function () {
-        var a = new Attachments(createKnoxMock(), {
+        var a = new Attachments(createKnoxStub(), {
           acceptedMimeTypes: ['text/plain'],
         });
 
@@ -100,7 +106,7 @@ describe('Attachments module', function () {
       });
 
       it('Should accept Regex as array value', function () {
-        var a = new Attachments(createKnoxMock(), {
+        var a = new Attachments(createKnoxStub(), {
           acceptedMimeTypes: [/^.*plain$/],
         });
 
@@ -113,7 +119,114 @@ describe('Attachments module', function () {
 
   describe('#uploadFile', function () {
 
-    it('Should call client#putFile once');
+    // For these tests we heavily use testdouble.js, please refer to its
+    // documentation: https://github.com/testdouble/testdouble.js#docs
+
+    var bigFilePath = __dirname + '/big-file.txt';
+
+    it('Should call #_checkConstraints once', function () {
+      var a = new Attachments(createKnoxStub());
+
+      a._checkConstraints = td.function('_checkConstraints');
+      td
+        .when(a._checkConstraints(bigFilePath))
+        .thenReturn(undefined);
+
+      a.uploadFile(bigFilePath, '/yay.txt');
+    });
+
+    it('Should return rejected Promise if #_checkConstraints returns error', function () {
+      var a = new Attachments(createKnoxStub());
+
+      a._checkConstraints = td.function('_checkConstraints');
+      td
+        .when(a._checkConstraints(bigFilePath))
+        .thenReturn(new Error('Attachments: Invalid file mimetype'));
+
+      var res = a.uploadFile(bigFilePath, '/yay.txt');
+
+      assert.ok(res.then);
+
+      return res
+        .then(function () {
+          throw 'Should not have resolved';
+        })
+        .catch(function (err) {
+          assert.deepEqual(err, new Error('Attachments: Invalid file mimetype'));
+        })
+    });
+
+    it('Should call client#putFile() once and call res.resume() once', function (doneTest) {
+      // Stub code
+
+      var resStub = {
+        resume: td.function('resume'),
+      };
+
+      var putFile = td.function('putFile');
+      td
+        .when(putFile(bigFilePath, '/yes.txt', td.callback))
+        .thenCallback(null, resStub);
+
+      var knoxStub = {
+        putFile: putFile,
+      };
+
+      // Test code
+
+      var a = new Attachments(knoxStub);
+
+      return a.uploadFile(bigFilePath, '/yes.txt')
+        .then(function () {
+          td.verify(
+            putFile(bigFilePath, '/yes.txt', td.callback(null, resStub)),
+            { times: 1 }
+          );
+
+          td.verify(resStub.resume(), { times: 1 });
+
+          doneTest();
+        })
+        .catch(doneTest);
+    });
+
+    it('Should return correct String according to input', function (doneTest) {
+      // Stub code
+
+      var resStub = {
+        resume: td.function('resume'),
+      };
+
+      var putFile = td.function('putFile');
+      td
+        .when(putFile(bigFilePath, '/foo/yes.txt', td.callback))
+        .thenCallback(null, resStub);
+
+      var knoxStub = {
+        putFile: putFile,
+      };
+
+      // Test code
+
+      var a = new Attachments(knoxStub, {
+        pathPrefix: '/foo',
+      });
+
+      return a.uploadFile(bigFilePath, '/yes.txt')
+        .then(function (destPath) {
+          td.verify(
+            putFile(bigFilePath, '/foo/yes.txt', td.callback(null, resStub)),
+            { times: 1 }
+          );
+
+          td.verify(resStub.resume(), { times: 1 });
+
+          assert.equal(destPath, '/foo/yes.txt');
+
+          doneTest();
+        })
+        .catch(doneTest);
+    });
 
   });
 
