@@ -4,7 +4,7 @@ var assert = require('assert');
 var td = require('testdouble');
 
 if (global.Attachments == null) {
-  require(__dirname + '/../../../lib/Attachments');
+  require(__dirname + '/../lib');
 }
 
 var createKnoxStub = function () {
