@@ -53,4 +53,68 @@ describe('Attachments module', function () {
 
   });
 
+  describe('#_checkConstraints', function () {
+
+    var bigFilePath = __dirname + '/big-file.txt';
+
+    describe('Max file size', function () {
+
+      var fileSizeError = new Error('Attachments: File too big');
+
+      it('Should return error for file bigger than limit', function () {
+        var a = new Attachments(createKnoxMock(), {
+          maxFileSize: 1023,
+        });
+
+        assert.deepEqual(a._checkConstraints(bigFilePath), fileSizeError);
+      });
+
+      it('Should allow file that does not break limit', function () {
+        var a = new Attachments(createKnoxMock(), {
+          maxFileSize: 1024,
+        });
+
+        assert.notDeepEqual(a._checkConstraints(bigFilePath), fileSizeError);
+      });
+
+    });
+
+    describe('Accepted Mimetypes', function () {
+
+      var mimeTypeError = new Error('Attachments: Invalid file mimetype');
+
+      it('Should return Error for file that is not in accepted array', function () {
+        var a = new Attachments(createKnoxMock(), {
+          acceptedMimeTypes: ['image/png'],
+        });
+
+        assert.deepEqual(a._checkConstraints(bigFilePath), mimeTypeError);
+      });
+
+      it('Should allow file that is in accepted array', function () {
+        var a = new Attachments(createKnoxMock(), {
+          acceptedMimeTypes: ['text/plain'],
+        });
+
+        assert.notDeepEqual(a._checkConstraints(bigFilePath), mimeTypeError);
+      });
+
+      it('Should accept Regex as array value', function () {
+        var a = new Attachments(createKnoxMock(), {
+          acceptedMimeTypes: [/^.*plain$/],
+        });
+
+        assert.notDeepEqual(a._checkConstraints(bigFilePath), mimeTypeError);
+      });
+
+    });
+
+  });
+
+  describe('#uploadFile', function () {
+
+    it('Should call client#putFile once');
+
+  });
+
 });
