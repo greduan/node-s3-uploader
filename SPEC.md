@@ -265,7 +265,7 @@ Set consErr to be equal to:
   Call this.checkConstraints() with arguments:
     1. `srcPath`
 
-If `consError` is an Error object
+If `consErr` is an Error object
   Return rejected Promise with Error object
 
 Set finalPath to be equal to:

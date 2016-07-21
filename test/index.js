@@ -59,7 +59,7 @@ describe('S3Uploader module', function () {
 
   });
 
-  describe('#_checkConstraints', function () {
+  describe('#checkConstraints', function () {
 
     var bigFilePath = __dirname + '/big-file.txt';
 
@@ -72,7 +72,7 @@ describe('S3Uploader module', function () {
           maxFileSize: 1023,
         });
 
-        assert.deepEqual(a._checkConstraints(bigFilePath), fileSizeError);
+        assert.deepEqual(a.checkConstraints(bigFilePath), fileSizeError);
       });
 
       it('Should allow file that does not break limit', function () {
@@ -80,7 +80,7 @@ describe('S3Uploader module', function () {
           maxFileSize: 1024,
         });
 
-        assert.notDeepEqual(a._checkConstraints(bigFilePath), fileSizeError);
+        assert.notDeepEqual(a.checkConstraints(bigFilePath), fileSizeError);
       });
 
     });
@@ -94,7 +94,7 @@ describe('S3Uploader module', function () {
           acceptedMimeTypes: ['image/png'],
         });
 
-        assert.deepEqual(a._checkConstraints(bigFilePath), mimeTypeError);
+        assert.deepEqual(a.checkConstraints(bigFilePath), mimeTypeError);
       });
 
       it('Should allow file that is in accepted array', function () {
@@ -102,7 +102,7 @@ describe('S3Uploader module', function () {
           acceptedMimeTypes: ['text/plain'],
         });
 
-        assert.notDeepEqual(a._checkConstraints(bigFilePath), mimeTypeError);
+        assert.notDeepEqual(a.checkConstraints(bigFilePath), mimeTypeError);
       });
 
       it('Should accept Regex as array value', function () {
@@ -110,7 +110,7 @@ describe('S3Uploader module', function () {
           acceptedMimeTypes: [/^.*plain$/],
         });
 
-        assert.notDeepEqual(a._checkConstraints(bigFilePath), mimeTypeError);
+        assert.notDeepEqual(a.checkConstraints(bigFilePath), mimeTypeError);
       });
 
     });
@@ -124,23 +124,23 @@ describe('S3Uploader module', function () {
 
     var bigFilePath = __dirname + '/big-file.txt';
 
-    it('Should call #_checkConstraints once', function () {
+    it('Should call #checkConstraints once', function () {
       var a = new S3Uploader(createKnoxStub());
 
-      a._checkConstraints = td.function('_checkConstraints');
+      a.checkConstraints = td.function('checkConstraints');
       td
-        .when(a._checkConstraints(bigFilePath))
+        .when(a.checkConstraints(bigFilePath))
         .thenReturn(undefined);
 
       a.uploadFile(bigFilePath, '/yay.txt');
     });
 
-    it('Should return rejected Promise if #_checkConstraints returns error', function () {
+    it('Should return rejected Promise if #checkConstraints returns error', function () {
       var a = new S3Uploader(createKnoxStub());
 
-      a._checkConstraints = td.function('_checkConstraints');
+      a.checkConstraints = td.function('checkConstraints');
       td
-        .when(a._checkConstraints(bigFilePath))
+        .when(a.checkConstraints(bigFilePath))
         .thenReturn(new Error('S3Uploader: Invalid file mimetype'));
 
       var res = a.uploadFile(bigFilePath, '/yay.txt');
