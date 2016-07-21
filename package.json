@@ -21,6 +21,7 @@
   "homepage": "https://github.com/greduan/node-s3-uploader#readme",
   "dependencies": {
     "bluebird": "3.4.1",
+    "knox-mpu": "0.1.6",
     "mime": "1.3.4",
     "neon": "2.0.0"
   },

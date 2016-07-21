@@ -25,6 +25,8 @@ constraints on what can be uploaded.
 - Will be used to upload any image, document or file the system would need.
   Branding, avatars, Teachers' documents, etc.
 - Will be used alongside Multer.
+- Whatever is being uploaded through streams is from a trusted source, for we
+  can't check its constraints.
 
 ## Research
 
@@ -36,6 +38,7 @@ constraints on what can be uploaded.
 ### Resources
 
 - Knox https://github.com/Automattic/knox
+- Knox Multi-part Upload support https://github.com/nathanoehlman/knox-mpu
 - `mime` https://github.com/broofa/node-mime
 - Multer https://github.com/expressjs/multer
 
@@ -97,11 +100,38 @@ upload the file to the Amazon S3 bucket given to the client.
 However, before uploading anything, it checks that the file it's asked to upload
 meets the constraints, namely it makes sure that it doesn't break
 `this.maxFileSize` and that it's in `this.acceptedMimeTypes`.  It does so by
-calling `this._checkConstraints(srcPath)`, which returns an Error object or
+calling `this.checkConstraints(srcPath)`, which returns an Error object or
 nothing, if it returns an Error object we just return a rejected Promise with
 the Error object, otherwise we continue.
 
-#### `#_checkConstraints(srcPath)`
+#### `#uploadStream(srcStream, destPath)`
+
+Returns a Promise which resolves whenever the upload is sucessful and the
+resolve contains the full URI for the new uploaded file.  Any errors can be
+caught with a call to `.catch` on the returned Promise.
+
+Both arguments are required, `srcStream` is the stream that will be uploaded to
+Amazon S3.
+
+`destPath` is a path for the file on the Amazon S3 cloud.  The `destPath` is
+passed to `path.join('/attachments', instance.pathPrefix, filePath)` before
+actually uploading, just to make sure it's a valid path.
+
+This method makes use of `knox-mpu` in order to upload the stream, we don't know
+the size of the stream so this is the only way to go about this.
+
+##### No constraints on streams
+
+Sadly this is a limitation of the medium, so to speak.  Because of its nature,
+you cannot know the length of a stream, and it's also not possible to know the
+mimetype of a stream's contents.
+
+Because of this, we cannot check to make sure the content being streamed does
+not break the constraints.
+
+We delegate this responsibility to whoever is making use of this library.
+
+#### `#checkConstraints(srcPath)`
 
 This function would just check the provided file path's mimetype and its size,
 if its mimetype is not inside `this._acceptedMimeTypes` then it'll return an
@@ -209,7 +239,7 @@ Parameters:
 - `srcPath`, Required, String, it's the full path, in the server's file system,
   to the file to be uploaded, e.g. `/tmp/uploads/random-string.png`
 - `destPath`, Required, String, it's the path in the bucket to upload the file
-  as, e.g. 'avatar-28471', is prefixed with `this._pathPrefix`
+  as, e.g. `'avatar-28471'`, it is prefixed with `this._pathPrefix`
 
 Returns:
 
@@ -232,7 +262,7 @@ Pseudo-code:
 
 ```
 Set consErr to be equal to:
-  Call this._checkConstraints() with arguments:
+  Call this.checkConstraints() with arguments:
     1. `srcPath`
 
 If `consError` is an Error object
@@ -260,7 +290,60 @@ Return new Promise with arguments:
             1. `finalPath`
 ```
 
-#### `#_checkConstraints(<String> srcPath)`
+#### `#uploadStream(<ReadableStream> srcStream, <String> destPath)`
+
+Arguments:
+
+- `srcStream`, Required, readable stream, the stream to upload as a file to the
+  S3 server.
+- `destPath`, Required, String, it's the path in the bucket to upload the file
+  as, e.g. `'avatar-28471'`, it is prefixed with `this._pathPrefix`
+
+Returns:
+
+Typical use case:
+
+```js
+var readStream = fs.createReadStream('/tmp/yayfile.png')
+
+// attachments has pathPrefix as '/attachments'
+attachments.uploadStream(readStream, '/attachment-yay')
+  .then(function (path) {
+    // path => '/attachments/attachment-yay'
+  })
+  .catch(...);
+```
+
+Pseudo-code:
+
+```
+Set that to: this
+
+Set finalPath to:
+  Call path.join() with arguments:
+    1. this._pathPrefix
+    2. destPath
+
+Return Call new Promise() with arguments:
+  1. function with named arguments: resolve, reject
+    Set mpu to:
+      Call new MPU() with arguments:
+        1. Object:
+          {
+            client: that._client,
+            objectName: finalPath,
+            stream: srcStream,
+          }
+        2. function with named arguments: err, body
+          If err is not null
+            Return Call reject() with arguments:
+              1. err
+
+          Return Call resolve() with arguments:
+            1. body.Key
+```
+
+#### `#checkConstraints(<String> srcPath)`
 
 Parameters:
 
@@ -274,7 +357,7 @@ it'll return an Error object.
 Typical usage:
 
 ```js
-var consErr = this._checkConstraints(srcPath);
+var consErr = this.checkConstraints(srcPath);
 
 if (consErr instanceof Error) {
   return Promise.reject(consErr);
